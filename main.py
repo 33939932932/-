@@ -23,6 +23,8 @@ from aiohttp import web
 # ───────────────────────────────────────────────────────────────
 #  КОНФИГ
 # ───────────────────────────────────────────────────────────────
+import sys
+print(f"BOT_TOKEN set: {bool(os.getenv('BOT_TOKEN'))}", flush=True)
 
 BOT_TOKEN      = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
 SUPER_ADMIN_ID = int(os.getenv("SUPER_ADMIN_ID", "866169035"))
