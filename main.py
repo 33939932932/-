@@ -1,4 +1,4 @@
-# ═══════════════════# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════
 #  ☣️  БИО-ВОЙНЫ  —  Telegram Bot  v3.0
 #  Стек: Python 3.11, aiogram 3.7, aiosqlite
 # ═══════════════════════════════════════════════════════════════
@@ -16,7 +16,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup,
-    KeyboardButton, Message, ReplyKeyboardMarkup,
+    Message,
 )
 from aiohttp import web
 
@@ -582,14 +582,21 @@ def scientist_cost(level: int) -> float:
 # ───────────────────────────────────────────────────────────────
 
 def kb_main():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton(text="🧫 Лаборатория"), KeyboardButton(text="📋 Профиль")],
-            [KeyboardButton(text="☣️ Заразить"),    KeyboardButton(text="🏆 Топ")],
-            [KeyboardButton(text="🏢 Корпорация"),  KeyboardButton(text="ℹ️ Помощь")],
+    """Главное inline-меню под сообщением."""
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🧫 Лаборатория", callback_data="menu_lab"),
+            InlineKeyboardButton(text="📋 Профиль",     callback_data="menu_profile"),
         ],
-        resize_keyboard=True
-    )
+        [
+            InlineKeyboardButton(text="☣️ Заразить",   callback_data="menu_infect"),
+            InlineKeyboardButton(text="🏆 Топ",         callback_data="menu_top"),
+        ],
+        [
+            InlineKeyboardButton(text="🏢 Корпорация",  callback_data="menu_corp"),
+            InlineKeyboardButton(text="ℹ️ Помощь",      callback_data="menu_help"),
+        ],
+    ])
 
 def kb_cancel():
     return InlineKeyboardMarkup(inline_keyboard=[
@@ -713,10 +720,11 @@ async def cmd_start(msg: Message):
 #  ЛАБОРАТОРИЯ
 # ───────────────────────────────────────────────────────────────
 
-async def _show_lab(msg: Message):
-    uid = msg.from_user.id
+async def _show_lab(msg: Message, user=None):
+    _user = user or msg.from_user
+    uid = _user.id
     if await is_banned(uid): return await msg.answer("🚫 Заблокированы.")
-    p = await get_or_create(uid, msg.from_user.username, msg.from_user.full_name)
+    p = await get_or_create(uid, _user.username, _user.full_name)
     p = await refresh_pathogens(p)
 
     interval = pathogen_interval(p["scientist_level"])
@@ -747,8 +755,16 @@ async def _show_lab(msg: Message):
 async def cmd_lab(msg: Message):
     await _show_lab(msg)
 
-@router.message(F.text.func(lambda t: t and t.lower() == ".лаб"))
+@router.message(Command("лаб"))
+async def cmd_lаb_slash(msg: Message):
+    await _show_lab(msg)
+
+@router.message(F.text == ".лаб")
 async def cmd_lab_dot(msg: Message):
+    await _show_lab(msg)
+
+@router.message(F.text == ".ЛАБ")
+async def cmd_lab_dot_upper(msg: Message):
     await _show_lab(msg)
 
 @router.callback_query(F.data == "back_to_lab")
@@ -830,7 +846,7 @@ async def proc_rename_lab(msg: Message, state: FSMContext):
         return await msg.answer("❌ Название 2–32 символа.")
     await update_player(msg.from_user.id, lab_name=name)
     await state.clear()
-    await msg.answer(f"✅ Название лаборатории изменено на <b>{name}</b>!", reply_markup=kb_main())
+    await msg.answer(f"✅ Название лаборатории изменено на <b>{name}</b>! Открой /лаб")
 
 @router.message(S.rename_pathogen)
 async def proc_rename_pathogen(msg: Message, state: FSMContext):
@@ -839,7 +855,7 @@ async def proc_rename_pathogen(msg: Message, state: FSMContext):
         return await msg.answer("❌ Название 2–32 символа.")
     await update_player(msg.from_user.id, pathogen_name=name)
     await state.clear()
-    await msg.answer(f"✅ Патоген переименован в <b>{name}</b>!", reply_markup=kb_main())
+    await msg.answer(f"✅ Патоген переименован в <b>{name}</b>! Открой /лаб")
 
 # ───────────────────────────────────────────────────────────────
 #  ПРОКАЧКА
@@ -962,6 +978,147 @@ async def cmd_profile(msg: Message):
         f"🦠 Болезней: <b>{p['diseases_count']}</b>\n"
         f"🧪 Патогены: <b>{p['pathogens_ready']}/{p['pathogens_max']}</b>"
         f"{fever_str}{infected_str}"
+    )
+
+
+# ───────────────────────────────────────────────────────────────
+#  ОБРАБОТЧИКИ ГЛАВНОГО МЕНЮ (inline кнопки)
+# ───────────────────────────────────────────────────────────────
+
+@router.callback_query(F.data == "menu_lab")
+async def cb_menu_lab(cb: CallbackQuery):
+    await cb.answer()
+    await _show_lab(cb.message, user=cb.from_user)
+
+@router.callback_query(F.data == "menu_profile")
+async def cb_menu_profile(cb: CallbackQuery):
+    await cb.answer()
+    # создаём фейк msg-like объект через send_message
+    uid = cb.from_user.id
+    p = await get_or_create(uid, cb.from_user.username, cb.from_user.full_name)
+    if await is_banned(uid): return await cb.message.answer("🚫 Заблокированы.")
+    p = await refresh_pathogens(p)
+    rank = get_rank(p["bio_exp"])
+    next_thresh, next_rank = get_next_rank(p["bio_exp"])
+    next_str = f"\n📈 До <b>{next_rank}</b>: <b>{next_thresh - p['bio_exp']}</b> опыта" if next_rank else ""
+    has_fever = fever_active(p)
+    is_inf    = infected_active(p)
+    fever_str = infected_str = ""
+    if has_fever:
+        fu = datetime.datetime.fromisoformat(str(p["fever_until"]))
+        rem = int((fu - datetime.datetime.utcnow()).total_seconds())
+        h, m = divmod(rem // 60, 60)
+        fever_str = f"\n🤒 <b>Горячка:</b> {h}ч {m}мин (/лечение)"
+    if is_inf:
+        iu = datetime.datetime.fromisoformat(str(p["infected_until"]))
+        rem = int((iu - datetime.datetime.utcnow()).total_seconds())
+        h, m = divmod(rem // 60, 60)
+        infected_str = f"\n☣️ <b>Заражён:</b> {h}ч {m}мин"
+    corp_str = ""
+    if p.get("corp_id"):
+        corp = await get_corp(p["corp_id"])
+        if corp: corp_str = f"\n🏢 <b>[{corp['tag']}] {corp['name']}</b>"
+    title_str = ""
+    t = player_display_title(p)
+    if t: title_str = f"\n{t}"
+    ops_pct  = 0 if not p["operations_total"]  else round(p["operations_success"]/p["operations_total"]*100,1)
+    prev_pct = 0 if not p["prevented_total"]   else round(p["prevented_success"]/p["prevented_total"]*100,1)
+    await cb.message.answer(
+        f"👤 <b>{p['full_name']}</b>  (@{p['username'] or '—'}){title_str}{corp_str}\n"
+        f"🏭 <b>{p['lab_name']}</b>  |  🆔 <code>{p['lab_id']}</code>\n"
+        f"🔬 Патоген: <b>{p['pathogen_name']}</b>\n"
+        f"🎖 Ранг: <b>{rank}</b>{next_str}\n\n"
+        f"🔬 <b>НАВЫКИ:</b>\n"
+        f"🦠 Заразность: <b>{p['infection']} ур</b>\n"
+        f"🛡 Иммунитет: <b>{p['immunity']} ур</b>\n"
+        f"☠️ Летальность: <b>{p['lethality']} ур</b>\n"
+        f"🔒 Безопасность: <b>{p['security']} ур</b>\n\n"
+        f"📊 <b>СТАТИСТИКА:</b>\n"
+        f"☣️ Био-Опыт: <b>{p['bio_exp']}</b>\n"
+        f"🧬 Био-Ресурсы: <b>{p['bio_resource']:.1f}</b>\n"
+        f"😷 Спецопераций: <b>{p['operations_success']} из {p['operations_total']} ({ops_pct}%)</b>\n"
+        f"🥷 Предотвращены: <b>{p['prevented_success']} из {p['prevented_total']} ({prev_pct}%)</b>\n"
+        f"😤 Заражённых: <b>{p['infected_count']}</b>\n"
+        f"🧪 Патогены: <b>{p['pathogens_ready']}/{p['pathogens_max']}</b>"
+        f"{fever_str}{infected_str}",
+        reply_markup=kb_main()
+    )
+
+@router.callback_query(F.data == "menu_infect")
+async def cb_menu_infect(cb: CallbackQuery):
+    await cb.answer()
+    await cb.message.answer(
+        "☣️ <b>Как заразить?</b>\n\n"
+        "• Ответь на сообщение жертвы и напиши /заразить\n"
+        "• /заразить @username\n"
+        "• /заразить 123456789"
+    )
+
+@router.callback_query(F.data == "menu_top")
+async def cb_menu_top(cb: CallbackQuery):
+    await cb.answer()
+    top = await get_top_players(10)
+    if not top:
+        return await cb.message.answer("Топ пуст.")
+    medals = ["🥇","🥈","🥉"] + ["🔹"] * 7
+    lines  = ["🏆 <b>ТОП-10 игроков</b> (по Био-Опыту)\n"]
+    for i, p in enumerate(top):
+        name  = p["full_name"] or p["username"] or str(p["user_id"])
+        rank  = get_rank(p["bio_exp"])
+        title = player_display_title(p)
+        t_str = f" <i>{title}</i>" if title else ""
+        lines.append(
+            f"{medals[i]} {name}{t_str}\n"
+            f"   {rank} | ☣️ {p['bio_exp']} | 😤 {p['infected_count']}"
+        )
+    await cb.message.answer("\n".join(lines), reply_markup=kb_main())
+
+@router.callback_query(F.data == "menu_corp")
+async def cb_menu_corp(cb: CallbackQuery):
+    await cb.answer()
+    uid = cb.from_user.id
+    p = await get_or_create(uid, cb.from_user.username, cb.from_user.full_name)
+    if p.get("corp_id"):
+        corp = await get_corp(p["corp_id"])
+        if corp:
+            corp_rank = get_corp_rank(corp["members_count"])
+            return await cb.message.answer(
+                f"🏢 <b>[{corp['tag']}] {corp['name']}</b>\n"
+                f"{corp_rank}\n\n"
+                f"👥 Участников: <b>{corp['members_count']}</b>\n"
+                f"🧬 Био-Ресурсы: <b>{corp['bio_resource']:.1f}</b>\n"
+                f"☣️ Био-Опыт: <b>{corp['bio_exp']}</b>\n"
+                f"📝 {corp['description'] or '—'}",
+                reply_markup=kb_corp_actions(p)
+            )
+    await cb.message.answer(
+        "🏢 <b>Корпорации</b>\n\nТы не в корпорации.",
+        reply_markup=kb_corp_actions(p)
+    )
+
+@router.callback_query(F.data == "menu_help")
+async def cb_menu_help(cb: CallbackQuery):
+    await cb.answer()
+    await cb.message.answer(
+        "☣️ <b>БИО-ВОЙНЫ — Помощь</b>\n\n"
+        "<b>Атаки:</b>\n"
+        "/заразить @user — по юзернейму\n"
+        "/заразить 123456789 — по ID\n"
+        "Ответь на сообщение + /заразить\n\n"
+        "<b>Лаборатория:</b>\n"
+        "/лаб или .лаб — открыть лабу\n"
+        "/лечение — вылечить горячку\n\n"
+        "<b>Корпорации:</b>\n"
+        "/создатькорпорацию — создать\n"
+        "/вступить ТЕГ — вступить\n"
+        "/выйтиизкорп — выйти\n"
+        "/топкланы — топ корпораций\n\n"
+        "<b>Механика:</b>\n"
+        "🦠 Заразность vs 🛡Иммунитет+🔒Безопасность\n"
+        "☠️ Летальность → длительность заражения (до 24ч)\n"
+        "🧪 Патогены тратятся на атаку\n"
+        "🔭 Квалификация учёных → скорость патогенов (30мин→1мин)\n"
+        "🤒 Горячка — нельзя атаковать, лечится за 🧬 или ждать"
     )
 
 # ───────────────────────────────────────────────────────────────
@@ -1465,6 +1622,8 @@ async def cmd_demote(msg: Message):
     if not target: return await msg.answer("❌ Игрок не найден.")
     if target["user_id"] == SUPER_ADMIN_ID:
         return await msg.answer("❌ Владельца нельзя трогать!")
+    if target["user_id"] == msg.from_user.id:
+        return await msg.answer("❌ Нельзя разжаловать самого себя!")
 
     target_level = target.get("admin_level", 0)
     # Со-владелец может разжаловать только до уровня 2
@@ -1533,6 +1692,8 @@ async def cmd_ban(msg: Message):
     if not target: return await msg.answer("❌ Игрок не найден.")
     if target["user_id"] == SUPER_ADMIN_ID:
         return await msg.answer("❌ Владельца нельзя банить!")
+    if target["user_id"] == msg.from_user.id:
+        return await msg.answer("❌ Нельзя банить самого себя!")
     reason = parts[2] if len(parts) > 2 else "Не указана"
     await update_player(target["user_id"], is_banned=1)
     await msg.answer(
