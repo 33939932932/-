@@ -833,6 +833,7 @@ def kb_promo_admin():
 
 @router.message(CommandStart())
 @router.message(F.text == ".start")
+@router.message(F.text == ".старт")
 async def cmd_start(msg: Message):
     if await is_banned(msg.from_user.id):
         return await msg.answer("🚫 Вы заблокированы.")
@@ -927,26 +928,24 @@ async def cb_menu_help(cb: CallbackQuery):
     await cb.answer()
     await cb.message.answer(
         "ℹ️ <b>БИО-ВОЙНЫ — Помощь</b>\n\n"
-        "<b>Основные команды (с точкой):</b>\n"
-        ".старт — начать\n"
+        "<b>Команды (с точкой):</b>\n"
+        ".старт — начать / главное меню\n"
         ".лаб — лаборатория\n"
         ".профиль — профиль\n"
         ".заразить @user — атака\n"
         ".лечение — вылечить горячку\n"
         ".топ — топ игроков\n"
         ".топкорп — топ корпораций\n"
-        ".промокод КОД — активировать\n"
-        ".помощь — эта справка\n"
-        ".помощьрп — справка по РП\n\n"
-        "<b>Корпорации:</b>\n"
-        ".создатькорп — создать\n"
+        ".корп — моя корпорация\n"
+        ".создатькорп — создать корп.\n"
         ".вступить ТЕГ — вступить\n"
-        ".выйти — выйти из корпорации\n\n"
+        ".выйти — выйти из корпорации\n"
+        ".промокод КОД — активировать\n"
+        ".помощь — справка\n"
+        ".помощьрп — РП справка\n\n"
         "<b>Прокачка через чат:</b>\n"
-        "+заразность 1 — купить уровень\n"
-        "++заразность 1 — подтвердить покупку\n"
-        "(также: иммунитет, защита, летальность,\n"
-        " учёные, патогены)",
+        "+заразность 2 — показать цену\n"
+        "++заразность 2 — купить",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🎭 РП помощь", callback_data="rp_help")],
             [InlineKeyboardButton(text="◀️ Меню", callback_data="back_main")],
@@ -1006,7 +1005,9 @@ async def _show_lab(msg: Message, user=None):
     await msg.answer(_lab_text(p), reply_markup=kb_lab(p))
 
 @router.message(F.text == ".lab")
+@router.message(F.text == ".лаб")
 @router.message(F.text == ".LAB")
+@router.message(F.text == ".ЛАБ")
 @router.message(Command("lab"))
 async def cmd_lab(msg: Message):
     await _show_lab(msg)
@@ -1287,6 +1288,7 @@ async def _send_profile(answer_func, p: dict):
     )
 
 @router.message(F.text == ".profile")
+@router.message(F.text == ".профиль")
 @router.message(Command("profile"))
 async def cmd_profile(msg: Message):
     if await is_banned(msg.from_user.id): return await msg.answer("🚫")
@@ -1376,6 +1378,7 @@ async def cb_menu_rp(cb: CallbackQuery):
 
 @router.callback_query(F.data == "rp_help")
 @router.message(F.text == ".helprp")
+@router.message(F.text == ".помощьрп")
 async def cb_rp_help(event):
     msg = event if isinstance(event, Message) else event.message
     if isinstance(event, CallbackQuery): await event.answer()
@@ -1578,6 +1581,7 @@ async def cmd_infect(msg: Message):
 # ───────────────────────────────────────────────────────────────
 
 @router.message(F.text == ".heal")
+@router.message(F.text == ".лечение")
 @router.message(Command("heal"))
 async def cmd_fever(msg: Message):
     p = await get_or_create(msg.from_user.id, msg.from_user.username, msg.from_user.full_name)
@@ -1618,6 +1622,7 @@ async def cb_fever_wait(cb: CallbackQuery):
 # ───────────────────────────────────────────────────────────────
 
 @router.message(F.text == ".top")
+@router.message(F.text == ".топ")
 @router.message(Command("top"))
 async def cmd_top(msg: Message):
     top    = await get_top_players(10)
@@ -1633,6 +1638,7 @@ async def cmd_top(msg: Message):
     await msg.answer("\n".join(lines) if top else "Топ пуст.")
 
 @router.message(F.text == ".topcorp")
+@router.message(F.text == ".топкорп")
 @router.message(Command("topclans"))
 async def cmd_top_corps(msg: Message):
     top    = await get_top_corps(10)
@@ -1648,6 +1654,7 @@ async def cmd_top_corps(msg: Message):
 # ───────────────────────────────────────────────────────────────
 
 @router.message(F.text == ".createcorp")
+@router.message(F.text == ".создатькорп")
 @router.message(Command("createcorp"))
 @router.callback_query(F.data == "corp_create")
 async def cmd_create_corp(event, state: FSMContext):
@@ -1710,6 +1717,7 @@ async def cmd_join_corp(msg: Message):
     await msg.answer(f"✅ Вступил в <b>[{corp['tag']}] {corp['name']}</b>!")
 
 @router.message(F.text == ".leave")
+@router.message(F.text == ".выйти")
 @router.message(Command("leavecorp"))
 @router.callback_query(F.data == "corp_leave")
 async def cmd_leave_corp(event):
@@ -1751,6 +1759,7 @@ async def cb_corp_search(cb: CallbackQuery):
     await cb.answer()
 
 @router.message(F.text == ".corp")
+@router.message(F.text == ".корп")
 @router.message(Command("corp"))
 async def cmd_corp_menu(msg: Message):
     uid = msg.from_user.id
@@ -1825,6 +1834,7 @@ async def cmd_use_promo(msg: Message):
 # ───────────────────────────────────────────────────────────────
 
 @router.message(F.text == ".help")
+@router.message(F.text == ".помощь")
 @router.message(Command("help"))
 async def cmd_help(msg: Message):
     await msg.answer(
@@ -1859,6 +1869,7 @@ async def _resolve_target_arg(arg: str) -> Optional[dict]:
     return None
 
 @router.message(F.text == ".admin")
+@router.message(F.text == ".админ")
 @router.message(Command("admin"))
 async def cmd_admin(msg: Message):
     uid = msg.from_user.id
@@ -2155,6 +2166,7 @@ async def cmd_demote(msg: Message):
     except Exception: pass
 
 @router.message(F.text == ".hide")
+@router.message(F.text == ".спрятать")
 async def cmd_hide(msg: Message):
     uid = msg.from_user.id
     if not await is_admin(uid, min_level=2): return
