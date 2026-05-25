@@ -1883,7 +1883,7 @@ async def cmd_admin(msg: Message):
         f"Уровень: <b>{title}</b>\n\n"
         f"📌 Команды:\n"
         f".выдать @user 500 — 🧬 Ресурсы\n"
-        f".выдатьуран @user 100 — ☢️ Уран (только себе ур.9)\n"
+        f".довуран @user 100 — ☢️ Уран (только себе ур.9)\n"
         f".выдатьопыт @user 100 — ☣️ Опыт\n"
         f".выдатьопыткорп ТЕГ 100 — ☣️ Опыт корп.\n"
         f".бан @user причина — 🚫 (ур.4+)\n"
@@ -1940,7 +1940,7 @@ async def cb_adm_give_uran(cb: CallbackQuery):
     uid = cb.from_user.id
     if await get_admin_level(uid) < 9: return await cb.answer("❌ Только Владелец!", show_alert=True)
     await cb.message.edit_text(
-        "☢️ <b>Выдача Уран-223</b>\n\n.выдатьуран @username 100",
+        "☢️ <b>Выдача Уран-223</b>\n\n.довуран @username 100",
         reply_markup=kb_admin_main()
     )
     await cb.answer()
@@ -1959,7 +1959,7 @@ async def cb_adm_help(cb: CallbackQuery):
     if not await is_admin(cb.from_user.id): return await cb.answer("❌", show_alert=True)
     await cb.message.edit_text(
         "📋 <b>Все команды администратора</b>\n\n"
-        ".выдать @user 500\n.выдатьуран @user 100 (ур.9)\n"
+        ".выдать @user 500\n.довуран @user 100 (ур.9)\n"
         ".выдатьопыт @user 100\n.выдатьопыткорп ТЕГ 100\n"
         ".бан @user причина (ур.4+)\n.разбан @user (ур.4+)\n"
         ".повысить @user 1-5 причина (ур.5+)\n"
@@ -1996,13 +1996,13 @@ async def cmd_give(msg: Message):
             await msg.bot.send_message(target["user_id"], f"🎁 +{amount:.0f}🧬\nБаланс: {new_bal:.1f}")
         except Exception: pass
 
-@router.message(F.text.startswith(".выдатьуран"))
+@router.message(F.text.startswith(".довуран"))
 async def cmd_give_uran(msg: Message):
     uid = msg.from_user.id
     if await get_admin_level(uid) < 9:
         return await msg.answer("❌ Только Владелец!")
     parts = msg.text.strip().split()
-    if len(parts) < 3: return await msg.answer("❌ .выдатьуран @user 100")
+    if len(parts) < 3: return await msg.answer("❌ .довуран @user 100")
     target = await _resolve_target_arg(parts[1])
     if not target: return await msg.answer("❌ Не найден.")
     try:
