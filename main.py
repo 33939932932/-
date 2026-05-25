@@ -23,8 +23,6 @@ from aiohttp import web
 # ───────────────────────────────────────────────────────────────
 #  КОНФИГ
 # ───────────────────────────────────────────────────────────────
-import sys
-print(f"BOT_TOKEN set: {bool(os.getenv('BOT_TOKEN'))}", flush=True)
 
 BOT_TOKEN      = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
 SUPER_ADMIN_ID = int(os.getenv("SUPER_ADMIN_ID", "866169035"))
@@ -834,7 +832,7 @@ def kb_promo_admin():
 # ───────────────────────────────────────────────────────────────
 
 @router.message(CommandStart())
-@router.message(F.text == ".старт")
+@router.message(F.text == ".start")
 async def cmd_start(msg: Message):
     if await is_banned(msg.from_user.id):
         return await msg.answer("🚫 Вы заблокированы.")
@@ -1007,9 +1005,9 @@ async def _show_lab(msg: Message, user=None):
     p = await refresh_pathogens(p)
     await msg.answer(_lab_text(p), reply_markup=kb_lab(p))
 
-@router.message(F.text == ".лаб")
-@router.message(F.text == ".ЛАБ")
-@router.message(Command("лаб"))
+@router.message(F.text == ".lab")
+@router.message(F.text == ".LAB")
+@router.message(Command("lab"))
 async def cmd_lab(msg: Message):
     await _show_lab(msg)
 
@@ -1288,8 +1286,8 @@ async def _send_profile(answer_func, p: dict):
         f"{fever_str}{infected_str}"
     )
 
-@router.message(F.text == ".профиль")
-@router.message(Command("профиль"))
+@router.message(F.text == ".profile")
+@router.message(Command("profile"))
 async def cmd_profile(msg: Message):
     if await is_banned(msg.from_user.id): return await msg.answer("🚫")
     p = await get_or_create(msg.from_user.id, msg.from_user.username, msg.from_user.full_name)
@@ -1377,7 +1375,7 @@ async def cb_menu_rp(cb: CallbackQuery):
     )
 
 @router.callback_query(F.data == "rp_help")
-@router.message(F.text == ".помощьрп")
+@router.message(F.text == ".helprp")
 async def cb_rp_help(event):
     msg = event if isinstance(event, Message) else event.message
     if isinstance(event, CallbackQuery): await event.answer()
@@ -1459,7 +1457,7 @@ async def _resolve_target(msg: Message) -> Optional[dict]:
     return None
 
 @router.message(F.text.startswith(".заразить"))
-@router.message(Command("заразить"))
+@router.message(Command("infect"))
 async def cmd_infect(msg: Message):
     uid = msg.from_user.id
     if await is_banned(uid): return await reply_or_dm(msg, msg.bot, "🚫 Заблокированы.")
@@ -1579,8 +1577,8 @@ async def cmd_infect(msg: Message):
 #  ГОРЯЧКА
 # ───────────────────────────────────────────────────────────────
 
-@router.message(F.text == ".лечение")
-@router.message(Command("лечение"))
+@router.message(F.text == ".heal")
+@router.message(Command("heal"))
 async def cmd_fever(msg: Message):
     p = await get_or_create(msg.from_user.id, msg.from_user.username, msg.from_user.full_name)
     if not fever_active(p):
@@ -1619,8 +1617,8 @@ async def cb_fever_wait(cb: CallbackQuery):
 #  ТОПЫ
 # ───────────────────────────────────────────────────────────────
 
-@router.message(F.text == ".топ")
-@router.message(Command("топ"))
+@router.message(F.text == ".top")
+@router.message(Command("top"))
 async def cmd_top(msg: Message):
     top    = await get_top_players(10)
     medals = ["🥇","🥈","🥉"] + ["🔹"] * 7
@@ -1634,8 +1632,8 @@ async def cmd_top(msg: Message):
         lines.append(f"{medals[i]} {vip}{name}{t_str}\n   {rank} | ☣️ {p['bio_exp']} | 😤 {p['infected_count']}")
     await msg.answer("\n".join(lines) if top else "Топ пуст.")
 
-@router.message(F.text == ".топкорп")
-@router.message(Command("топкланы"))
+@router.message(F.text == ".topcorp")
+@router.message(Command("topclans"))
 async def cmd_top_corps(msg: Message):
     top    = await get_top_corps(10)
     medals = ["🥇","🥈","🥉"] + ["🔹"] * 7
@@ -1649,8 +1647,8 @@ async def cmd_top_corps(msg: Message):
 #  КОРПОРАЦИИ
 # ───────────────────────────────────────────────────────────────
 
-@router.message(F.text == ".создатькорп")
-@router.message(Command("создатькорпорацию"))
+@router.message(F.text == ".createcorp")
+@router.message(Command("createcorp"))
 @router.callback_query(F.data == "corp_create")
 async def cmd_create_corp(event, state: FSMContext):
     msg = event if isinstance(event, Message) else event.message
@@ -1696,7 +1694,7 @@ async def proc_corp_tag(msg: Message, state: FSMContext):
     )
 
 @router.message(F.text.startswith(".вступить"))
-@router.message(Command("вступить"))
+@router.message(Command("joincorp"))
 async def cmd_join_corp(msg: Message):
     uid  = msg.from_user.id
     p    = await get_or_create(uid, msg.from_user.username, msg.from_user.full_name)
@@ -1711,8 +1709,8 @@ async def cmd_join_corp(msg: Message):
         await db.commit()
     await msg.answer(f"✅ Вступил в <b>[{corp['tag']}] {corp['name']}</b>!")
 
-@router.message(F.text == ".выйти")
-@router.message(Command("выйтиизкорп"))
+@router.message(F.text == ".leave")
+@router.message(Command("leavecorp"))
 @router.callback_query(F.data == "corp_leave")
 async def cmd_leave_corp(event):
     uid = event.from_user.id
@@ -1752,8 +1750,8 @@ async def cb_corp_search(cb: CallbackQuery):
     await cb.message.answer("🔍 Напиши: .вступить ТЕГ")
     await cb.answer()
 
-@router.message(F.text == ".корп")
-@router.message(Command("корпорация"))
+@router.message(F.text == ".corp")
+@router.message(Command("corp"))
 async def cmd_corp_menu(msg: Message):
     uid = msg.from_user.id
     p   = await get_or_create(uid, msg.from_user.username, msg.from_user.full_name)
@@ -1785,7 +1783,7 @@ async def cb_menu_promo(cb: CallbackQuery):
     )
 
 @router.message(F.text.startswith(".промокод"))
-@router.message(Command("промокод"))
+@router.message(Command("promo"))
 async def cmd_use_promo(msg: Message):
     uid   = msg.from_user.id
     parts = msg.text.strip().split(maxsplit=1)
@@ -1826,7 +1824,7 @@ async def cmd_use_promo(msg: Message):
 #  ПОМОЩЬ
 # ───────────────────────────────────────────────────────────────
 
-@router.message(F.text == ".помощь")
+@router.message(F.text == ".help")
 @router.message(Command("help"))
 async def cmd_help(msg: Message):
     await msg.answer(
@@ -1860,7 +1858,7 @@ async def _resolve_target_arg(arg: str) -> Optional[dict]:
     if arg.isdigit():       return await get_player(int(arg))
     return None
 
-@router.message(F.text == ".админ")
+@router.message(F.text == ".admin")
 @router.message(Command("admin"))
 async def cmd_admin(msg: Message):
     uid = msg.from_user.id
@@ -2156,7 +2154,7 @@ async def cmd_demote(msg: Message):
             f"⚠️ Вы разжалованы\n📝 {reason}")
     except Exception: pass
 
-@router.message(F.text == ".спрятать")
+@router.message(F.text == ".hide")
 async def cmd_hide(msg: Message):
     uid = msg.from_user.id
     if not await is_admin(uid, min_level=2): return
@@ -2565,11 +2563,11 @@ async def main():
     dp.include_router(router)
     await bot.set_my_commands([
         BotCommand(command="start",   description="🚀 Начать"),
-        BotCommand(command="лаб",     description="🧫 Лаборатория"),
-        BotCommand(command="профиль", description="📋 Профиль"),
-        BotCommand(command="топ",     description="🏆 Топ игроков"),
-        BotCommand(command="топкланы",description="🏢 Топ корпораций"),
-        BotCommand(command="лечение", description="💊 Горячка"),
+        BotCommand(command="lab",     description="🧫 Лаборатория"),
+        BotCommand(command="profile", description="📋 Профиль"),
+        BotCommand(command="top",     description="🏆 Топ игроков"),
+        BotCommand(command="topclans",description="🏢 Топ корпораций"),
+        BotCommand(command="heal", description="💊 Горячка"),
         BotCommand(command="help",    description="ℹ️ Помощь"),
     ])
     logger.info("Бот запущен ✅")
